@@ -1,71 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import * as XLSX from "xlsx";
 import './index.css';
 
-
 const Products = () => {
-    const [excelData, setExcelData] = useState([]);
+    const [editIndex, setEditIndex] = useState(null);
+
     const [data, setDataForm] = useState({
         productName: "",
         categoryName: "",
         price: "",
         stock: ""
     });
-    // const handleFileUpload = (e) => {
-    //     const file = e.target.files[0];
-    //     const reader = new FileReader();
-
-    //     reader.onload = (event) => {
-    //         const data = new Uint8Array(event.target.result);
-    //         const workbook = XLSX.read(data, { type: "array" });
-
-    //         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    //         const jsonData = XLSX.utils.sheet_to_json(worksheet);
-    //         setExcelData(jsonData);
-    //     };
-
-    //     reader.readAsArrayBuffer(file);
-    // };
 
     const [check, isCheck] = useState(true);
     const [finalData, setData] = useState([]);
-
+    const [serialCounter, setSerialCounter] = useState(1);
 
     useEffect(() => {
         const storedData = JSON.parse(localStorage.getItem("products"));
-        if (storedData) {
+        if (storedData && storedData.length > 0) {
             setData(storedData);
+            
+            const maxId = Math.max(...storedData.map(p => p.product_id), 0);
+            setSerialCounter(maxId + 1);
         }
     }, []);
-
 
     useEffect(() => {
         localStorage.setItem("products", JSON.stringify(finalData));
     }, [finalData]);
 
-    // const handleFileUpload = (e) => {
-    //     const file = e.target.files[0];
-    //     const reader = new FileReader();
-
-    //     reader.onload = (event) => {
-    //         const data = new Uint8Array(event.target.result);
-    //         const workbook = XLSX.read(data, { type: "array" });
-
-    //         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    //         const jsonData = XLSX.utils.sheet_to_json(worksheet);
-    //         setExcelData(jsonData);
-    //     };
-
-    //     reader.readAsArrayBuffer(file);
-    // };
-
     const productName = (event) => {
-        const nameValue = event.target.value;
-        setDataForm({
-            ...data,
-            productName: nameValue
-        });
+        setDataForm({ ...data, productName: event.target.value });
     };
 
     const categoryName = (event) => {
@@ -74,48 +40,41 @@ const Products = () => {
 
         const isUnique = !storedData.some(item => item.category_name === nameValue);
 
-        setDataForm({
-            ...data,
-            categoryName: nameValue
-        });
-
-        isCheck(isUnique);
+        setDataForm({ ...data, categoryName: nameValue });
+        isCheck(isUnique || editIndex !== null); 
     };
 
     const price = (event) => {
-        const price = event.target.value;
-        setDataForm({
-            ...data,
-            price: price
-        });
+        setDataForm({ ...data, price: event.target.value });
     };
 
     const stock = (event) => {
-        const stockValue = event.target.value;
-        setDataForm({
-            ...data,
-            stock: stockValue
-        });
+        setDataForm({ ...data, stock: event.target.value });
     };
 
     const submitData = (event) => {
         event.preventDefault();
 
-        const newData = {
-            product_id: uuidv4(),
+        const updatedProduct = {
+            product_id: editIndex ?? serialCounter,
             product_name: data.productName,
             category_name: data.categoryName,
             price: data.price,
             stock: data.stock
         };
 
-        setData((prev) => [...prev, newData]);
-        setDataForm({
-            productName: "",
-            categoryName: "",
-            price: "",
-            stock: ""
-        });
+        if (editIndex !== null) {
+            const updatedData = finalData.map(item =>
+                item.product_id === editIndex ? updatedProduct : item
+            );
+            setData(updatedData);
+        } else {
+            setData(prev => [...prev, updatedProduct]);
+            setSerialCounter(prev => prev + 1);
+        }
+
+        setDataForm({ productName: "", categoryName: "", price: "", stock: "" });
+        setEditIndex(null);
         isCheck(true);
     };
 
@@ -124,83 +83,133 @@ const Products = () => {
         setData(result);
     };
 
+    const editItem = (id) => {
+        const productToEdit = finalData.find(item => item.product_id === id);
+        if (productToEdit) {
+            setDataForm({
+                productName: productToEdit.product_name,
+                categoryName: productToEdit.category_name,
+                price: productToEdit.price,
+                stock: productToEdit.stock
+            });
+            setEditIndex(id);
+        }
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+
+        reader.onload = (event) => {
+            const binaryStr = event.target.result;
+            const workbook = XLSX.read(binaryStr, { type: "binary" });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+
+            const data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+            
+            const formattedData = data.map((item, index) => ({
+                product_id: serialCounter + index,
+                product_name: item.product_name || "",
+                category_name: item.category_name || "",
+                price: item.price || "",
+                stock: item.stock || ""
+            }));
+
+            setData(prev => [...prev, ...formattedData]);
+            setSerialCounter(prev => prev + formattedData.length);
+        };
+
+        reader.readAsBinaryString(file);
+    };
+
     return (
         <div className="container mt-5">
-            <div className="row">
-
-
-                <div className="col-md-6">
-                    <div className="card shadow-sm">
-                        <div className="card-body p-4">
-                            <h1 className="text-center mb-4">Add New Products</h1>
-                            <form onSubmit={submitData}>
+            <div className="row d-flex flex-row justify-content-around">
+                <div className='col-md-4'>
+                    <div className='col-md-12'>
+                        <div className="card shadow-sm">
+                            <div className="card-body p-4">
+                                <h1 className="text-center mb-4">File Data</h1>
                                 <div className='mt-5'>
-                                    <label htmlFor='fileId' className="form-label">File Upload</label>
-                                    <input type="file" accept='.xlsl, .xl' id="fileId" placeholder='upload file' className='form-control'/>
-                                </div>
-                                <div className="mb-3 mt-4">
-                                    <label htmlFor="productName" className="form-label">Product Name</label>
+                                    <label htmlFor='fileId' className="form-label lable-heading">File Upload</label>
                                     <input
-                                        type="text"
-                                        id="productName"
-                                        className="form-control"
-                                        placeholder="Enter product name"
-                                        required
-                                        onChange={productName}
-                                        value={data.productName}
+                                        type="file"
+                                        accept='.xlsx, .xls'
+                                        id="fileId"
+                                        className='form-control'
+                                        onChange={handleFileUpload}
                                     />
                                 </div>
+                            </div>
+                        </div>
+                    </div>
 
-                                <div className="mb-4">
-                                    <label htmlFor="categoryName" className="form-label">Category Name</label>
-                                    <input
-                                        type="text"
-                                        id="categoryName"
-                                        className="form-control"
-                                        placeholder="Enter category name"
-                                        required
-                                        onChange={categoryName}
-                                        value={data.categoryName}
-                                    />
-                                    {!check && (
-                                        <p className='para text-danger mt-1'>Please enter a unique category name</p>
-                                    )}
-                                </div>
+                    <div className="col-md-12 mt-4">
+                        <div className="card shadow-sm">
+                            <div className="card-body p-4">
+                                <h1 className="text-center mb-4">{editIndex ? "Edit Product" : "Add Product"}</h1>
+                                <form onSubmit={submitData}>
+                                    <div className="mb-3">
+                                        <label htmlFor="productName" className="form-label">Product Name</label>
+                                        <input
+                                            type="text"
+                                            id="productName"
+                                            className="form-control"
+                                            required
+                                            onChange={productName}
+                                            value={data.productName}
+                                        />
+                                    </div>
 
-                                <div className="mb-4">
-                                    <label htmlFor="price" className="form-label">Price</label>
-                                    <input
-                                        type="text"
-                                        id="price"
-                                        className="form-control"
-                                        placeholder="Enter price"
-                                        required
-                                        onChange={price}
-                                        value={data.price}
-                                    />
-                                </div>
+                                    <div className="mb-4">
+                                        <label htmlFor="categoryName" className="form-label">Category Name</label>
+                                        <input
+                                            type="text"
+                                            id="categoryName"
+                                            className="form-control"
+                                            required
+                                            onChange={categoryName}
+                                            value={data.categoryName}
+                                        />
+                                        {!check && (
+                                            <p className='para text-danger mt-1'>Please enter a unique category name</p>
+                                        )}
+                                    </div>
 
-                                <div className="mb-4">
-                                    <label htmlFor="stock" className="form-label">Stock</label>
-                                    <input
-                                        type="text"
-                                        id="stock"
-                                        className="form-control"
-                                        placeholder="Enter stock"
-                                        required
-                                        onChange={stock}
-                                        value={data.stock}
-                                    />
-                                </div>
+                                    <div className="mb-4">
+                                        <label htmlFor="price" className="form-label">Price</label>
+                                        <input
+                                            type="text"
+                                            id="price"
+                                            className="form-control"
+                                            required
+                                            onChange={price}
+                                            value={data.price}
+                                        />
+                                    </div>
 
-                                <button type="submit" className="btn btn-primary w-100 py-2">
-                                    Add Product
-                                </button>
-                            </form>
+                                    <div className="mb-4">
+                                        <label htmlFor="stock" className="form-label">Stock</label>
+                                        <input
+                                            type="text"
+                                            id="stock"
+                                            className="form-control"
+                                            required
+                                            onChange={stock}
+                                            value={data.stock}
+                                        />
+                                    </div>
+
+                                    <button type="submit" className="btn btn-primary w-100 py-2">
+                                        {editIndex ? "Update Product" : "Add Product"}
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
-
 
                 <div className="col-md-6">
                     <h2 className="text-center mb-4 category-heading">Products Table</h2>
@@ -212,13 +221,14 @@ const Products = () => {
                                 <th>Category Name</th>
                                 <th>Price</th>
                                 <th>Stock</th>
-                                <th>Action</th>
+                                <th>Edit</th>
+                                <th>Delete</th>
                             </tr>
                         </thead>
                         <tbody>
                             {finalData.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="text-center">No data added</td>
+                                    <td colSpan="7" className="text-center">No data added</td>
                                 </tr>
                             ) : (
                                 finalData.map(item => (
@@ -229,9 +239,10 @@ const Products = () => {
                                         <td>{item.price}</td>
                                         <td>{item.stock}</td>
                                         <td>
-                                            <button className="btn btn-danger" onClick={() => deleteItem(item.product_id)}>
-                                                Delete
-                                            </button>
+                                            <button className="btn btn-primary" onClick={() => editItem(item.product_id)}>Edit</button>
+                                        </td>
+                                        <td>
+                                            <button className="btn btn-danger" onClick={() => deleteItem(item.product_id)}>Delete</button>
                                         </td>
                                     </tr>
                                 ))

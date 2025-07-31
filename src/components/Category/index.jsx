@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import './index.css';
 
-
 const Category = () => {
     const [data, setdata] = useState({
         categoryName: "",
         Description: ""
     });
-    const [check,isCheck] = useState(false)
 
+    const [check, isCheck] = useState(true);
     const [finalData, setData] = useState([]);
 
-
+    
     useEffect(() => {
         const storedData = JSON.parse(localStorage.getItem("categories"));
         if (storedData) {
@@ -20,22 +19,27 @@ const Category = () => {
         }
     }, []);
 
+    
     useEffect(() => {
         localStorage.setItem("categories", JSON.stringify(finalData));
     }, [finalData]);
 
+    
     const categoryName = (event) => {
         const nameValue = event.target.value;
-        const storedData = JSON.parse(localStorage.getItem("categories"));
-        if(!storedData.includes(nameValue)){
-            setdata({
-                ...data,categoryName:nameValue
-            })
-            isCheck(p=>!p)
-            
-        }
+        const storedData = JSON.parse(localStorage.getItem("categories")) || [];
+
+        const isUnique = !storedData.some(item => item.category_name.toLowerCase() === nameValue.toLowerCase());
+
+        setdata({
+            ...data,
+            categoryName: nameValue
+        });
+
+        isCheck(isUnique);
     };
 
+    
     const description = (event) => {
         const descriptionValue = event.target.value;
         setdata({
@@ -44,30 +48,36 @@ const Category = () => {
         });
     };
 
+    
     const submitData = (event) => {
         event.preventDefault();
 
+        if (!check) {
+            alert("Category name must be unique.");
+            return;
+        }
+        
         const newData = {
-            category_id: uuidv4(),
+            category_id: finalData.length + 1,
             category_name: data.categoryName,
             category_description: data.Description
         };
 
-        setData((p) => [...p, newData]);
+        setData((prev) => [...prev, newData]);
         setdata({ categoryName: "", Description: "" });
+        isCheck(true);
     };
 
+    
     const deleteItem = (id) => {
-        const result = finalData.filter((item) => item.category_id !== id)
-        setData(result)
-    }
-
-
+        const result = finalData.filter((item) => item.category_id !== id);
+        setData(result);
+    };
 
     return (
         <div className="container mt-5">
             <div className="row">
-                
+
                 <div className="col-md-6">
                     <div className="card shadow-sm">
                         <div className="card-body p-4">
@@ -86,8 +96,9 @@ const Category = () => {
                                         onChange={categoryName}
                                         value={data.categoryName}
                                     />
-                                    
-                                    {check ? "" : <p className='para'>please enter a unique name</p>}
+                                    {!check && data.categoryName !== "" && (
+                                        <p className='text-danger mt-1'>Please enter a unique category name</p>
+                                    )}
                                 </div>
 
                                 <div className="mb-4">
@@ -112,6 +123,7 @@ const Category = () => {
                         </div>
                     </div>
                 </div>
+
                 <div className="col-md-6">
                     <h2 className="text-center mb-4 category-heading">Categories Table</h2>
                     <table className="table table-bordered">
@@ -126,7 +138,7 @@ const Category = () => {
                         <tbody>
                             {finalData.length === 0 ? (
                                 <tr>
-                                    <td colSpan="3" className="text-center">No data added</td>
+                                    <td colSpan="4" className="text-center">No data added</td>
                                 </tr>
                             ) : (
                                 finalData.map((item) => (
@@ -135,7 +147,7 @@ const Category = () => {
                                         <td>{item.category_name}</td>
                                         <td>{item.category_description}</td>
                                         <td>
-                                            <button className='btn btn-primary' onClick={()=>deleteItem(item.category_id)}>Delete</button>
+                                            <button className='btn btn-danger' onClick={() => deleteItem(item.category_id)}>Delete</button>
                                         </td>
                                     </tr>
                                 ))
@@ -145,7 +157,6 @@ const Category = () => {
                 </div>
             </div>
         </div>
-
     );
 };
 
