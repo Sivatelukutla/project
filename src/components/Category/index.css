@@ -1,0 +1,24 @@
+
+.card {
+    border-radius: 0.5rem;
+}
+
+.btn-primary {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.category-heading{
+    color: black;
+}
+
+.para{
+    color: red;
+    font-family: "Roboto";
+}
