@@ -120,6 +120,7 @@ const Category = () => {
                                 <th>Category ID</th>
                                 <th>Name</th>
                                 <th>Description</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
